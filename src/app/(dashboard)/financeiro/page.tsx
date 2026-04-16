@@ -73,52 +73,44 @@ export default function FinanceiroPage() {
 
             {/* Summary cards */}
             {summary && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <div style={{ background: 'var(--color-card)', border: '0.5px solid var(--color-border)', borderRadius: 10, padding: '12px 14px' }}>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>Gasto no mês</div>
-                        <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div style={{
+                        background: 'var(--color-card)', border: '0.5px solid var(--color-border)',
+                        borderRadius: 10, padding: '12px 14px',
+                    }}>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>Saídas</div>
+                        <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-red-text)' }}>
                             R$ {summary.total_expense.toFixed(2)}
                         </div>
                     </div>
-                    <div style={{ background: 'var(--color-card)', border: '0.5px solid var(--color-border)', borderRadius: 10, padding: '12px 14px' }}>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>Contas pendentes</div>
-                        <div style={{ fontSize: 22, fontWeight: 600, color: unpaidBills > 0 ? 'var(--color-red-text)' : 'var(--color-text-primary)' }}>
-                            {unpaidBills}
+                    <div style={{
+                        background: 'var(--color-card)', border: '0.5px solid var(--color-border)',
+                        borderRadius: 10, padding: '12px 14px',
+                    }}>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>Entradas</div>
+                        <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-green)' }}>
+                            R$ {summary.total_income.toFixed(2)}
+                        </div>
+                    </div>
+                    <div style={{
+                        background: 'var(--color-card)', border: '0.5px solid var(--color-border)',
+                        borderRadius: 10, padding: '12px 14px',
+                    }}>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>Saldo</div>
+                        <div style={{
+                            fontSize: 18, fontWeight: 600,
+                            color: (summary.total_income - summary.total_expense) >= 0
+                                ? 'var(--color-green)'
+                                : 'var(--color-red-text)',
+                        }}>
+                            R$ {(summary.total_income - summary.total_expense).toFixed(2)}
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* By category */}
-            {summary && Object.keys(summary.by_category).length > 0 && (
-                <SectionCard title="Por categoria" color="var(--color-amber)">
-                    <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {Object.entries(summary.by_category)
-                            .sort(([, a], [, b]) => b - a)
-                            .map(([cat, total]) => {
-                                const pct = Math.round((total / summary.total_expense) * 100)
-                                return (
-                                    <div key={cat}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-                                                {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS]}
-                                            </span>
-                                            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                                                R$ {total.toFixed(2)}
-                                            </span>
-                                        </div>
-                                        <div style={{ height: 4, background: 'var(--color-border-light)', borderRadius: 2 }}>
-                                            <div style={{ height: '100%', width: `${pct}%`, background: 'var(--color-amber)', borderRadius: 2 }} />
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                    </div>
-                </SectionCard>
-            )}
-
             <StatementImport onImport={importTransactions} />
-            
+
             {/* Transaction input */}
             <SectionCard title="Nova transação" color="var(--color-purple)">
                 <TransactionInput
