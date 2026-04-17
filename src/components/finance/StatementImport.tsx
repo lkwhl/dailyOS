@@ -1,8 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import type { StatementTransaction } from '@/lib/anthropic/statement-parser'
-import type { CreateTransactionInput } from '@/types/finance.types'
+import {
+    validateBalances,
+    type StatementTransaction,
+    type DailyBalance,
+    type BalanceValidation,
+} from '@/lib/statement-validation'
+import { CATEGORY_LABELS, type CreateTransactionInput } from '@/types/finance.types'
 
 interface Props {
     onImport: (transactions: CreateTransactionInput[]) => Promise<void>
@@ -13,6 +18,7 @@ export function StatementImport({ onImport }: Props) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [preview, setPreview] = useState<StatementTransaction[] | null>(null)
+    const [validation, setValidation] = useState<BalanceValidation[] | null>(null)
     const [selected, setSelected] = useState<Set<number>>(new Set())
     const [saving, setSaving] = useState(false)
 
@@ -46,8 +52,9 @@ export function StatementImport({ onImport }: Props) {
             }
 
             const transactions: StatementTransaction[] = json.dados.transactions
+            const dailyBalances: DailyBalance[] = json.dados.daily_balances ?? []
             setPreview(transactions)
-            // Select all by default
+            setValidation(validateBalances(transactions, dailyBalances))
             setSelected(new Set(transactions.map((_, i) => i)))
         } catch {
             setError('Erro ao processar o arquivo.')
@@ -81,15 +88,17 @@ export function StatementImport({ onImport }: Props) {
             .filter((_, i) => selected.has(i))
             .map((t) => ({
                 type: t.type,
-                amount: Math.abs(t.amount),
-                category: t.type === 'income' ? 'transfer' : 'other',
+                amount: t.amount,
+                category: t.category,
                 description: t.description,
                 transaction_date: t.date,
+                counterpart: t.counterpart ?? undefined,
                 raw_input: `importado do extrato: ${t.description}`,
             }))
 
         await onImport(toImport)
         setPreview(null)
+        setValidation(null)
         setSelected(new Set())
         setOpen(false)
         setSaving(false)
@@ -187,6 +196,47 @@ export function StatementImport({ onImport }: Props) {
                     </>
                 )}
 
+                {/* Validation panel */}
+                {validation && (() => {
+                    const errors = validation.filter(v => !v.ok)
+                    const allOk = errors.length === 0
+                    return (
+                        <div style={{
+                            marginBottom: 12,
+                            padding: '10px 12px',
+                            borderRadius: 8,
+                            background: allOk ? 'var(--color-green-bg, #f0fdf4)' : 'var(--color-red-bg)',
+                            border: `0.5px solid ${allOk ? 'var(--color-green, #16a34a)' : 'var(--color-red-text)'}`,
+                        }}>
+                            <div style={{
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color: allOk ? 'var(--color-green, #16a34a)' : 'var(--color-red-text)',
+                                marginBottom: errors.length > 0 ? 6 : 0,
+                            }}>
+                                {allOk
+                                    ? `✓ ${validation.length} dias validados — saldos conferem`
+                                    : `⚠ ${errors.length} de ${validation.length} dias com divergência`
+                                }
+                            </div>
+                            {errors.map(v => (
+                                <div key={v.date} style={{
+                                    fontSize: 11,
+                                    color: 'var(--color-red-text)',
+                                    marginTop: 3,
+                                    display: 'flex',
+                                    gap: 8,
+                                }}>
+                                    <span>{formatDate(v.date)}</span>
+                                    <span>esperado R$ {v.expected.toFixed(2)}</span>
+                                    <span>calculado R$ {v.calculated.toFixed(2)}</span>
+                                    <span>diff {v.diff > 0 ? '+' : ''}{v.diff.toFixed(2)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )
+                })()}
+
                 {/* Preview table */}
                 {preview && (
                     <>
@@ -269,6 +319,25 @@ export function StatementImport({ onImport }: Props) {
                                         whiteSpace: 'nowrap',
                                     }}>
                                         {t.description}
+                                        {t.counterpart && (
+                                            <span style={{ color: 'var(--color-text-faint)', marginLeft: 4 }}>
+                                                · {t.counterpart}
+                                            </span>
+                                        )}
+                                    </span>
+
+                                    {/* Category */}
+                                    <span style={{
+                                        fontSize: 10,
+                                        padding: '1px 6px',
+                                        borderRadius: 20,
+                                        background: 'var(--color-bg)',
+                                        color: 'var(--color-text-muted)',
+                                        border: '0.5px solid var(--color-border-light)',
+                                        flexShrink: 0,
+                                        whiteSpace: 'nowrap',
+                                    }}>
+                                        {CATEGORY_LABELS[t.category]}
                                     </span>
 
                                     {/* Amount */}
@@ -278,7 +347,7 @@ export function StatementImport({ onImport }: Props) {
                                         color: t.type === 'expense' ? 'var(--color-red-text)' : 'var(--color-green)',
                                         flexShrink: 0,
                                     }}>
-                                        {t.type === 'expense' ? '-' : '+'}R$ {Math.abs(t.amount).toFixed(2)}
+                                        {t.type === 'expense' ? '-' : '+'}R$ {t.amount.toFixed(2)}
                                     </span>
                                 </div>
                             ))}

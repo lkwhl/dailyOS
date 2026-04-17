@@ -26,7 +26,7 @@ export function TransactionList({ transactions, onDelete }: Props) {
     }, {})
 
     return (
-        <div>
+        <div style={{ maxHeight: 320, overflowY: 'auto' }}>
             {Object.entries(grouped).map(([date, rows]) => (
                 <div key={date}>
                     <div style={{

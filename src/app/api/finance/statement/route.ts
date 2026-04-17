@@ -41,15 +41,18 @@ export async function POST(request: Request) {
             )
         }
 
-        const transactions = await parseStatement(body.pdf)
+        const { transactions, daily_balances } = await parseStatement(body.pdf)
 
         return NextResponse.json({
             sucesso: true,
-            dados: { transactions, total: transactions.length },
+            dados: { transactions, daily_balances, total: transactions.length },
             erro: null,
         })
     } catch (error) {
-        const isParseError = error instanceof Error && error.message.includes('inválido')
+        const msg = error instanceof Error ? error.message : String(error)
+        const isParseError = msg.includes('inválido')
+
+        console.error('[statement] erro:', msg)
 
         return NextResponse.json(
             {
@@ -57,9 +60,7 @@ export async function POST(request: Request) {
                 dados: null,
                 erro: {
                     codigo: isParseError ? 'STATEMENT_PARSE_FAILED' : 'STATEMENT_ERROR',
-                    mensagem: isParseError
-                        ? 'Não foi possível interpretar o extrato. Verifique se o PDF é um extrato bancário válido.'
-                        : 'Erro ao processar extrato.',
+                    mensagem: msg,
                 },
             },
             { status: isParseError ? 422 : 500 }
